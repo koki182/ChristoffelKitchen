@@ -1,3 +1,4 @@
+import CustomButton from '../components/CustomButton';
 import React, { useState } from 'react';
 
 import {
@@ -5,278 +6,435 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ScrollView,
+  StyleSheet,
   Alert,
-  SafeAreaView,
+  Platform,
 } from 'react-native';
 
 import { Picker } from '@react-native-picker/picker';
-
 import { router } from 'expo-router';
 
-import { useMenu } from '../context/MenuContext';
+import {
+  useMenu,
+  MenuItem,
+} from '../context/MenuContext';
+
+import MenuItemCard from '../components/MenuItemCard';
 
 export default function AddMenuItemScreen() {
+
+  // GET MENU DATA AND FUNCTIONS FROM CONTEXT
   const {
     menuItems,
     addMenuItem,
     removeMenuItem,
+    isLoading,
   } = useMenu();
 
+  // FORM INPUTS
   const [dishName, setDishName] = useState('');
-  const [description, setDescription] =
-    useState('');
-
-  const [course, setCourse] =
-    useState('Starter');
-
+  const [description, setDescription] = useState('');
+  const [course, setCourse] = useState('');
   const [price, setPrice] = useState('');
 
-  const handleAddItem = () => {
-    if (dishName.trim() === '') {
-      Alert.alert(
-        'Missing Information',
-        'Please enter the dish name.'
-      );
+  // FEEDBACK MESSAGE
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] =
+    useState<'success' | 'error'>('success');
 
-      return;
-    }
+  // SHOW SUCCESS OR ERROR MESSAGE
+  const showMessage = (
+    text: string,
+    type: 'success' | 'error'
+  ) => {
+    setMessage(text);
+    setMessageType(type);
+  };
 
-    if (description.trim() === '') {
-      Alert.alert(
-        'Missing Information',
-        'Please enter a description.'
-      );
-
-      return;
-    }
-
-    if (price.trim() === '') {
-      Alert.alert(
-        'Missing Information',
-        'Please enter the price.'
-      );
-
-      return;
-    }
-
-    const numericPrice = Number(price);
-
-    if (
-      isNaN(numericPrice) ||
-      numericPrice <= 0
-    ) {
-      Alert.alert(
-        'Invalid Price',
-        'Please enter a valid price greater than zero.'
-      );
-
-      return;
-    }
-
-    const newItem = {
-      id: Date.now().toString(),
-
-      dishName: dishName.trim(),
-
-      description: description.trim(),
-
-      course: course,
-
-      price: numericPrice,
-    };
-
-    addMenuItem(newItem);
-
-    Alert.alert(
-      'Success',
-      `${dishName} has been successfully added to the menu.`
-    );
-
+  // CLEAR FORM AFTER ADDING A DISH
+  const clearForm = () => {
     setDishName('');
     setDescription('');
-    setCourse('Starter');
+    setCourse('');
     setPrice('');
   };
 
-  const confirmRemove = (
-    id: string,
-    name: string
-  ) => {
-    Alert.alert(
-      'Remove Menu Item',
-      `Are you sure you want to remove ${name}?`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
+  // ADD NEW MENU ITEM
+  const handleAddMenuItem = () => {
 
-        {
-          text: 'Remove',
-          style: 'destructive',
+    // CHECK FOR EMPTY FIELDS
+    if (
+      !dishName.trim() ||
+      !description.trim() ||
+      !course ||
+      !price.trim()
+    ) {
+      showMessage(
+        'Please complete all fields before adding a dish.',
+        'error'
+      );
+      return;
+    }
 
-          onPress: () =>
-            removeMenuItem(id),
-        },
-      ]
+    // CONVERT PRICE TO A NUMBER
+    const numericPrice = Number(price);
+
+    // VALIDATE PRICE
+    if (
+      !Number.isFinite(numericPrice) ||
+      numericPrice <= 0
+    ) {
+      showMessage(
+        'Please enter a valid price greater than zero.',
+        'error'
+      );
+      return;
+    }
+
+    // CREATE A NEW MENU ITEM
+    const newItem: MenuItem = {
+      id:
+        Date.now().toString() +
+        Math.random().toString(36).slice(2),
+      dishName: dishName.trim(),
+      description: description.trim(),
+      course: course,
+      price: numericPrice,
+    };
+
+    // ADD ITEM TO CONTEXT
+    addMenuItem(newItem);
+
+    // CLEAR INPUT FIELDS
+    clearForm();
+
+    // DISPLAY SUCCESS MESSAGE
+    showMessage(
+      `${newItem.dishName} was added successfully!`,
+      'success'
     );
   };
 
+  // REMOVE A MENU ITEM
+  const handleRemoveItem = (
+    id: string,
+    name: string
+  ) => {
+
+    const confirmRemoval = () => {
+      removeMenuItem(id);
+
+      showMessage(
+        `${name} was removed successfully!`,
+        'success'
+      );
+    };
+
+    // WEB BROWSER CONFIRMATION
+    if (Platform.OS === 'web') {
+
+      const confirmed = window.confirm(
+        `Are you sure you want to remove ${name}?`
+      );
+
+      if (confirmed) {
+        confirmRemoval();
+      }
+
+    } else {
+
+      // ANDROID AND IOS CONFIRMATION
+      Alert.alert(
+        'Remove Menu Item',
+        `Are you sure you want to remove ${name}?`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Remove',
+            style: 'destructive',
+            onPress: confirmRemoval,
+          },
+        ]
+      );
+
+    }
+  };
+
+  // DISPLAY EACH MENU ITEM USING REUSABLE COMPONENT
+  const renderMenuItem = (item: MenuItem) => {
+    return (
+      <MenuItemCard
+        key={item.id}
+        item={item}
+        showCourse={true}
+        onEdit={() =>
+          router.push({
+            pathname: '/edit-menu-item',
+            params: { id: item.id },
+          })
+        }
+        onRemove={() =>
+          handleRemoveItem(
+            item.id,
+            item.dishName
+          )
+        }
+      />
+    );
+  };
+
+  // MAIN SCREEN
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.brand}>
-          CHRISTOFFEL'S KITCHEN
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+    >
+
+      {/* APP HEADING */}
+      <Text style={styles.brand}>
+        CHRISTOFFEL'S KITCHEN
+      </Text>
+
+      <Text style={styles.title}>
+        Add Menu Item
+      </Text>
+
+      <Text style={styles.subtitle}>
+        Create and manage dishes for your menu.
+      </Text>
+
+      {/* ADD MENU ITEM FORM */}
+      <View style={styles.formCard}>
+
+        <Text style={styles.sectionTitle}>
+          New Dish Details
         </Text>
 
-        <Text style={styles.title}>
-          Add Menu Item
-        </Text>
-
+        {/* DISH NAME */}
         <Text style={styles.label}>
           Dish Name
         </Text>
 
         <TextInput
           style={styles.input}
-          placeholder="Enter dish name..."
+          placeholder="e.g. Grilled Chicken"
+          placeholderTextColor="#A08E85"
           value={dishName}
           onChangeText={setDishName}
         />
 
+        {/* DESCRIPTION */}
         <Text style={styles.label}>
           Description
         </Text>
 
         <TextInput
-          style={styles.input}
-          placeholder="Enter description..."
+          style={[
+            styles.input,
+            styles.descriptionInput,
+          ]}
+          placeholder="Describe the dish"
+          placeholderTextColor="#A08E85"
           value={description}
           onChangeText={setDescription}
+          multiline
         />
 
-        <View style={styles.twoColumns}>
-          <View style={styles.column}>
-            <Text style={styles.label}>
-              Course
-            </Text>
-
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={course}
-                onValueChange={(value) =>
-                  setCourse(value)
-                }
-              >
-                <Picker.Item
-                  label="Starter"
-                  value="Starter"
-                />
-
-                <Picker.Item
-                  label="Main Course"
-                  value="Main Course"
-                />
-
-                <Picker.Item
-                  label="Dessert"
-                  value="Dessert"
-                />
-              </Picker>
-            </View>
-          </View>
-
-          <View style={styles.column}>
-            <Text style={styles.label}>
-              Price
-            </Text>
-
-            <TextInput
-              style={styles.input}
-              placeholder="R 45"
-              keyboardType="numeric"
-              value={price}
-              onChangeText={setPrice}
-            />
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={handleAddItem}
-        >
-          <Text style={styles.addButtonText}>
-            ADD ITEM
-          </Text>
-        </TouchableOpacity>
-
-        <View style={styles.divider} />
-
-        <Text style={styles.previewTitle}>
-          Current Menu Preview
+        {/* COURSE */}
+        <Text style={styles.label}>
+          Course
         </Text>
 
-        {menuItems.length === 0 ? (
+        <View style={styles.pickerContainer}>
+
+          <Picker
+            selectedValue={course}
+            onValueChange={(value) =>
+              setCourse(value)
+            }
+            style={styles.picker}
+          >
+            <Picker.Item
+              label="Select a course"
+              value=""
+            />
+
+            <Picker.Item
+              label="Starter"
+              value="Starter"
+            />
+
+            <Picker.Item
+              label="Main Course"
+              value="Main Course"
+            />
+
+            <Picker.Item
+              label="Dessert"
+              value="Dessert"
+            />
+
+          </Picker>
+
+        </View>
+
+        {/* PRICE */}
+        <Text style={styles.label}>
+          Price (R)
+        </Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder="e.g. 150.00"
+          placeholderTextColor="#A08E85"
+          keyboardType="decimal-pad"
+          value={price}
+          onChangeText={setPrice}
+        />
+
+        {/* FEEDBACK MESSAGE */}
+        {message !== '' && (
+          <View
+            style={[
+              styles.messageBox,
+              messageType === 'success'
+                ? styles.successBox
+                : styles.errorBox,
+            ]}
+          >
+            <Text
+              style={[
+                styles.messageText,
+                messageType === 'success'
+                  ? styles.successText
+                  : styles.errorText,
+              ]}
+            >
+              {message}
+            </Text>
+          </View>
+        )}
+
+        {/* ADD BUTTON */}
+       <CustomButton
+  title="+ ADD MENU ITEM"
+  onPress={handleAddMenuItem}
+/>
+
+{/* NAVIGATION BUTTONS */}
+
+<CustomButton
+  title="View Today's Menu"
+  variant="primary"
+  onPress={() => router.push('/todays-menu')}
+/>
+
+<CustomButton
+  title="Search & Filter Menu"
+  variant="secondary"
+  onPress={() => router.push('/filter-menu')}
+/>
+
+<CustomButton
+  title="← BACK TO HOME"
+  variant="outline"
+  onPress={() => router.push('/home')}
+/>
+
+      </View>
+
+      {/* CURRENT MENU ITEMS */}
+      <View style={styles.menuSection}>
+
+        <View style={styles.menuHeading}>
+
+          <Text style={styles.sectionTitle}>
+            Current Menu Items
+          </Text>
+
+          <Text style={styles.itemCount}>
+            {menuItems.length} Items
+          </Text>
+
+        </View>
+
+        {isLoading ? (
+
+          <Text style={styles.emptyText}>
+            Loading saved menu items...
+          </Text>
+
+        ) : menuItems.length === 0 ? (
+
           <View style={styles.emptyCard}>
+
+            <Text style={styles.emptyIcon}>
+              🍽️
+            </Text>
+
             <Text style={styles.emptyTitle}>
-              No menu items added
+              No Menu Items Yet
             </Text>
 
             <Text style={styles.emptyText}>
               Add your first dish using the form above.
             </Text>
+
           </View>
+
         ) : (
-          menuItems.map((item) => (
-            <View
-              key={item.id}
-              style={styles.itemCard}
-            >
-              <View>
-                <Text style={styles.itemName}>
-                  {item.dishName}
-                </Text>
 
-                <Text style={styles.itemInfo}>
-                  R{item.price.toFixed(0)} • {item.course}
-                </Text>
-              </View>
+          menuItems.map((item) =>
+            renderMenuItem(item)
+          )
 
-              <TouchableOpacity
-                style={styles.removeButton}
-                onPress={() =>
-                  confirmRemove(
-                    item.id,
-                    item.dishName
-                  )
-                }
-              >
-                <Text style={styles.removeText}>
-                  🗑 Remove
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ))
         )}
 
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() =>
-            router.back()
-          }
-        >
-          <Text style={styles.backText}>
-            ← BACK
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </SafeAreaView>
+      </View>
+
+      {/* NAVIGATION BUTTONS */}
+      <TouchableOpacity
+        style={styles.viewMenuButton}
+        onPress={() =>
+          router.push('/todays-menu')
+        }
+      >
+        <Text style={styles.viewMenuText}>
+          View Today's Menu
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.filterButton}
+        onPress={() =>
+          router.push('/filter-menu')
+        }
+      >
+        <Text style={styles.filterText}>
+          Search & Filter Menu
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.push('/home')}
+      >
+        <Text style={styles.backText}>
+          ← BACK TO HOME
+        </Text>
+      </TouchableOpacity>
+
+    </ScrollView>
   );
 }
 
+// STYLES
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
     backgroundColor: '#FBF7F2',
@@ -284,147 +442,206 @@ const styles = StyleSheet.create({
 
   content: {
     padding: 22,
-    paddingBottom: 40,
+    paddingTop: 35,
+    paddingBottom: 50,
   },
 
   brand: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#E75826',
-    marginTop: 5,
+    letterSpacing: 0.5,
   },
 
   title: {
-    fontSize: 31,
+    fontSize: 32,
     fontWeight: 'bold',
-    color: '#35261F',
-    marginTop: 5,
-    marginBottom: 20,
+    color: '#34251F',
+    marginTop: 7,
+  },
+
+  subtitle: {
+    fontSize: 14,
+    color: '#807069',
+    marginTop: 7,
+    marginBottom: 25,
+  },
+
+  formCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E8DFD9',
+    padding: 20,
+    marginBottom: 28,
+  },
+
+  sectionTitle: {
+    fontSize: 19,
+    fontWeight: 'bold',
+    color: '#34251F',
   },
 
   label: {
-    color: '#67564E',
-    fontSize: 13,
-    marginBottom: 7,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#67564D',
+    marginTop: 18,
+    marginBottom: 8,
   },
 
   input: {
-    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5DED9',
-    borderRadius: 9,
+    borderColor: '#E3DAD4',
+    borderRadius: 10,
+    backgroundColor: '#FFFDFC',
     padding: 13,
-    marginBottom: 15,
+    fontSize: 14,
+    color: '#34251F',
   },
 
-  twoColumns: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-
-  column: {
-    flex: 1,
+  descriptionInput: {
+    height: 90,
+    textAlignVertical: 'top',
   },
 
   pickerContainer: {
     borderWidth: 1,
-    borderColor: '#E5DED9',
-    borderRadius: 9,
-    backgroundColor: '#FFFFFF',
+    borderColor: '#E3DAD4',
+    borderRadius: 10,
+    backgroundColor: '#FFFDFC',
     overflow: 'hidden',
-    marginBottom: 15,
+  },
+
+  picker: {
+    color: '#34251F',
+  },
+
+  messageBox: {
+    padding: 13,
+    borderRadius: 9,
+    marginTop: 18,
+  },
+
+  successBox: {
+    backgroundColor: '#E9F7EE',
+  },
+
+  errorBox: {
+    backgroundColor: '#FDE8E7',
+  },
+
+  messageText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  successText: {
+    color: '#267A43',
+  },
+
+  errorText: {
+    color: '#C63B32',
   },
 
   addButton: {
     backgroundColor: '#E75826',
-    padding: 16,
     borderRadius: 10,
+    padding: 16,
     alignItems: 'center',
+    marginTop: 22,
   },
 
   addButtonText: {
     color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: 'bold',
   },
 
-  divider: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#E9DFD9',
-    marginVertical: 22,
+  menuSection: {
+    marginBottom: 20,
   },
 
-  previewTitle: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: '#36281F',
-    marginBottom: 12,
-  },
-
-  itemCard: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E7DFD9',
-    borderRadius: 10,
-    padding: 13,
-    marginBottom: 9,
+  menuHeading: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-  },
-
-  itemName: {
-    fontWeight: 'bold',
-    color: '#382A24',
-  },
-
-  itemInfo: {
-    color: '#807068',
-    fontSize: 11,
-    marginTop: 3,
-  },
-
-  removeButton: {
-    backgroundColor: '#FFF0EB',
-    paddingVertical: 8,
-    paddingHorizontal: 11,
-    borderRadius: 8,
-  },
-
-  removeText: {
-    color: '#E75826',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-
-  backButton: {
-    borderWidth: 1,
-    borderColor: '#E9DFD8',
-    borderRadius: 10,
-    padding: 15,
     alignItems: 'center',
-    marginTop: 15,
+    marginBottom: 15,
   },
 
-  backText: {
-    color: '#6C5A51',
+  itemCount: {
+    fontSize: 13,
+    color: '#E75826',
+    fontWeight: 'bold',
   },
 
   emptyCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 25,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E8DFD9',
+  },
+
+  emptyIcon: {
+    fontSize: 40,
   },
 
   emptyTitle: {
-    color: '#382A24',
+    fontSize: 18,
     fontWeight: 'bold',
-    fontSize: 17,
+    color: '#34251F',
+    marginTop: 10,
   },
 
   emptyText: {
-    color: '#817068',
-    marginTop: 6,
+    fontSize: 13,
+    color: '#807069',
     textAlign: 'center',
+    marginTop: 8,
   },
+
+  viewMenuButton: {
+    backgroundColor: '#E75826',
+    borderRadius: 10,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+
+  viewMenuText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+
+  filterButton: {
+    backgroundColor: '#FFF0E9',
+    borderRadius: 10,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+
+  filterText: {
+    color: '#E75826',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+
+  backButton: {
+    borderWidth: 1,
+    borderColor: '#E3DAD4',
+    borderRadius: 10,
+    padding: 15,
+    alignItems: 'center',
+  },
+
+  backText: {
+    color: '#67564D',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+
 });

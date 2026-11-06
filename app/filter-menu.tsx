@@ -1,141 +1,210 @@
+import MenuItemCard from '../components/MenuItemCard';
 import React, { useState } from 'react';
 
 import {
   View,
   Text,
-  StyleSheet,
+  TextInput,
   TouchableOpacity,
-  SafeAreaView,
+  StyleSheet,
   ScrollView,
 } from 'react-native';
 
 import { Picker } from '@react-native-picker/picker';
-
 import { router } from 'expo-router';
-
 import { useMenu } from '../context/MenuContext';
 
 export default function FilterMenuScreen() {
+
+  // Get the menu items from MenuContext
   const { menuItems } = useMenu();
 
-  const [selectedCourse, setSelectedCourse] =
-    useState('Main Course');
+  // Store the search text
+  const [searchText, setSearchText] = useState('');
 
-  const filteredItems = menuItems.filter(
-    (item) =>
-      item.course === selectedCourse
-  );
+  // Store the selected course
+  const [selectedCourse, setSelectedCourse] =
+    useState('All');
+
+  // Search and filter menu items
+  const filteredItems = menuItems.filter((item) => {
+
+    // Check whether the dish name matches
+    const matchesSearch = item.dishName
+      .toLowerCase()
+      .includes(searchText.trim().toLowerCase());
+
+    // Check whether the course matches
+    const matchesCourse =
+      selectedCourse === 'All' ||
+      item.course === selectedCourse;
+
+    // Both conditions must be true
+    return matchesSearch && matchesCourse;
+  });
+
+  // Clear the search and filter
+  const handleClear = () => {
+    setSearchText('');
+    setSelectedCourse('All');
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.brand}>
-          CHRISTOFFEL'S KITCHEN
-        </Text>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+    >
 
-        <Text style={styles.title}>
-          Filter Menu
-        </Text>
+      {/* APP TITLE */}
+      <Text style={styles.brand}>
+        CHRISTOFFEL'S KITCHEN
+      </Text>
 
-        <Text style={styles.label}>
-          Choose Course
-        </Text>
+      <Text style={styles.title}>
+        Search & Filter
+      </Text>
 
-        <View style={styles.pickerContainer}>
-          <Picker
-            selectedValue={selectedCourse}
-            onValueChange={(value) =>
-              setSelectedCourse(value)
-            }
-          >
-            <Picker.Item
-              label="Starters"
-              value="Starter"
-            />
+      <Text style={styles.subtitle}>
+        Find your favourite dishes quickly and easily.
+      </Text>
 
-            <Picker.Item
-              label="Main Courses"
-              value="Main Course"
-            />
+      {/* SEARCH INPUT */}
+      <Text style={styles.label}>
+        Search by Dish Name
+      </Text>
 
-            <Picker.Item
-              label="Desserts"
-              value="Dessert"
-            />
-          </Picker>
-        </View>
+      <TextInput
+        style={styles.input}
+        placeholder="Search for a dish..."
+        placeholderTextColor="#9B8C84"
+        value={searchText}
+        onChangeText={setSearchText}
+        autoCapitalize="none"
+      />
 
-        <View style={styles.divider} />
+      {/* COURSE FILTER */}
+      <Text style={styles.label}>
+        Filter by Course
+      </Text>
 
-        <View style={styles.resultHeading}>
-          <Text style={styles.resultsTitle}>
-            Results
-          </Text>
-
-          <View style={styles.resultBadge}>
-            <Text style={styles.resultBadgeText}>
-              {filteredItems.length} Items Found
-            </Text>
-          </View>
-        </View>
-
-        {filteredItems.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyIcon}>
-              🍽️
-            </Text>
-
-            <Text style={styles.emptyTitle}>
-              No dishes found
-            </Text>
-
-            <Text style={styles.emptyText}>
-              There are currently no dishes in this course.
-            </Text>
-          </View>
-        ) : (
-          filteredItems.map((item) => (
-            <View
-              key={item.id}
-              style={styles.menuCard}
-            >
-              <View style={styles.foodIcon}>
-                <Text>🍽️</Text>
-              </View>
-
-              <View style={styles.menuInfo}>
-                <Text style={styles.dishName}>
-                  {item.dishName}
-                </Text>
-
-                <Text style={styles.description}>
-                  {item.description}
-                </Text>
-              </View>
-
-              <Text style={styles.price}>
-                R{item.price.toFixed(0)}
-              </Text>
-            </View>
-          ))
-        )}
-
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() =>
-            router.back()
+      <View style={styles.pickerContainer}>
+        <Picker
+          selectedValue={selectedCourse}
+          onValueChange={(value) =>
+            setSelectedCourse(value)
           }
         >
-          <Text style={styles.backText}>
-            ← BACK
+          <Picker.Item
+            label="All Courses"
+            value="All"
+          />
+
+          <Picker.Item
+            label="Starters"
+            value="Starter"
+          />
+
+          <Picker.Item
+            label="Main Courses"
+            value="Main Course"
+          />
+
+          <Picker.Item
+            label="Desserts"
+            value="Dessert"
+          />
+        </Picker>
+      </View>
+
+      {/* CLEAR BUTTON */}
+      <TouchableOpacity
+        style={styles.clearButton}
+        onPress={handleClear}
+      >
+        <Text style={styles.clearText}>
+          CLEAR SEARCH & FILTER
+        </Text>
+      </TouchableOpacity>
+
+      {/* RESULTS HEADER */}
+      <View style={styles.resultsHeader}>
+        <Text style={styles.resultsTitle}>
+          Results
+        </Text>
+
+        <View style={styles.countBadge}>
+          <Text style={styles.countText}>
+            {filteredItems.length} Items Found
           </Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </SafeAreaView>
+        </View>
+      </View>
+
+      {/* EMPTY MENU MESSAGE */}
+      {menuItems.length === 0 ? (
+
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyIcon}>
+            🍽️
+          </Text>
+
+          <Text style={styles.emptyTitle}>
+            No Menu Items Yet
+          </Text>
+
+          <Text style={styles.emptyText}>
+            The chef has not added any dishes.
+          </Text>
+        </View>
+
+      ) : filteredItems.length === 0 ? (
+
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyIcon}>
+            🔍
+          </Text>
+
+          <Text style={styles.emptyTitle}>
+            No Matching Dishes
+          </Text>
+
+          <Text style={styles.emptyText}>
+            Try another dish name or select
+            a different course.
+          </Text>
+        </View>
+
+      ) : (
+
+        
+        // DISPLAY MATCHING DISHES
+        filteredItems.map((item) => (
+          <MenuItemCard
+            key={item.id}
+            item={item}
+            showCourse={true}
+          />
+        ))
+
+      )}
+
+      {/* BACK BUTTON */}
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.back()}
+      >
+        <Text style={styles.backText}>
+          ← BACK
+        </Text>
+      </TouchableOpacity>
+
+    </ScrollView>
   );
 }
 
+// STYLING
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
     backgroundColor: '#FBF7F2',
@@ -143,146 +212,179 @@ const styles = StyleSheet.create({
 
   content: {
     padding: 22,
-    paddingBottom: 40,
+    paddingTop: 35,
+    paddingBottom: 50,
   },
 
   brand: {
     color: '#E75826',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 'bold',
-    marginTop: 5,
+    letterSpacing: 0.5,
   },
 
   title: {
-    color: '#35261F',
     fontSize: 31,
     fontWeight: 'bold',
-    marginTop: 5,
-    marginBottom: 20,
+    color: '#34251F',
+    marginTop: 7,
+  },
+
+  subtitle: {
+    fontSize: 14,
+    color: '#807069',
+    marginTop: 6,
+    marginBottom: 25,
   },
 
   label: {
-    color: '#66564F',
-    marginBottom: 7,
-    fontSize: 13,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#594A43',
+    marginBottom: 8,
+  },
+
+  input: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E3DAD4',
+    borderRadius: 10,
+    padding: 14,
+    fontSize: 15,
+    color: '#34251F',
+    marginBottom: 20,
   },
 
   pickerContainer: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E75826',
-    borderRadius: 11,
+    borderColor: '#E3DAD4',
+    borderRadius: 10,
     overflow: 'hidden',
+    marginBottom: 15,
   },
 
-  divider: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#E9DFD9',
-    marginVertical: 18,
+  clearButton: {
+    backgroundColor: '#FFF0E9',
+    borderRadius: 10,
+    padding: 15,
+    alignItems: 'center',
+    marginBottom: 25,
   },
 
-  resultHeading: {
+  clearText: {
+    color: '#E75826',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+
+  resultsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 15,
   },
 
   resultsTitle: {
-    fontSize: 19,
+    fontSize: 21,
     fontWeight: 'bold',
-    color: '#36281F',
+    color: '#34251F',
   },
 
-  resultBadge: {
+  countBadge: {
     backgroundColor: '#FFF0E9',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: 8,
   },
 
-  resultBadgeText: {
+  countText: {
     color: '#E75826',
-    fontSize: 11,
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 
   menuCard: {
     backgroundColor: '#FFFFFF',
-    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E8DFD9',
     borderRadius: 12,
+    padding: 16,
     marginBottom: 12,
     flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ECE3DD',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
 
-  foodIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFF0E9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-
-  menuInfo: {
+  menuDetails: {
     flex: 1,
+    paddingRight: 12,
   },
 
   dishName: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: 'bold',
-    color: '#382A24',
+    color: '#34251F',
   },
 
   description: {
-    color: '#827068',
+    fontSize: 13,
+    color: '#807069',
+    marginTop: 5,
+  },
+
+  course: {
     fontSize: 12,
-    marginTop: 4,
+    color: '#A08E85',
+    marginTop: 8,
   },
 
   price: {
+    fontSize: 16,
     color: '#E75826',
-    fontSize: 17,
     fontWeight: 'bold',
+  },
+
+  emptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 30,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E8DFD9',
+  },
+
+  emptyIcon: {
+    fontSize: 38,
+  },
+
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#34251F',
+    marginTop: 10,
+  },
+
+  emptyText: {
+    color: '#807069',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 7,
+    lineHeight: 20,
   },
 
   backButton: {
     borderWidth: 1,
-    borderColor: '#E9DFD8',
+    borderColor: '#E3DAD4',
     borderRadius: 10,
     padding: 15,
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 25,
   },
 
   backText: {
-    color: '#67564E',
+    color: '#67564D',
+    fontWeight: '600',
   },
 
-  emptyCard: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 30,
-    borderRadius: 14,
-  },
-
-  emptyIcon: {
-    fontSize: 40,
-  },
-
-  emptyTitle: {
-    color: '#382A24',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 8,
-  },
-
-  emptyText: {
-    color: '#817068',
-    marginTop: 6,
-    textAlign: 'center',
-  },
 });
